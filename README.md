@@ -1,4 +1,5 @@
 # Connections Bot
+### Created by Nathan Todd
 
 Automates the **NYT Connections** daily puzzle by opening the game in a real browser (via Playwright), dismissing cookie and start modals, reading the 16 tiles, and attempting solutions by proposing 4-word groups, submitting them, and adapting based on results. It combines:
 - Robust DOM/iframe navigation and selector fallbacks,
@@ -15,17 +16,6 @@ Automates the **NYT Connections** daily puzzle by opening the game in a real bro
 - [How it Works](#how-it-works)
 - [Requirements](#requirements)
 - [Installation](#installation)
-- [Playwright Browser Setup](#playwright-browser-setup)
-- [Environment Variables](#environment-variables)
-- [Usage](#usage)
-- [Examples](#examples)
-- [Logging, Screenshots, and Debugging](#logging-screenshots-and-debugging)
-- [Heuristics & LLM Integration](#heuristics--llm-integration)
-- [Troubleshooting](#troubleshooting)
-- [Limitations](#limitations)
-- [Development Notes](#development-notes)
-- [Security Notes](#security-notes)
-- [License](#license)
 
 ---
 
