@@ -1,11 +1,10 @@
 # Connections Bot
+### Created by Nathan Todd
 
 Automates the **NYT Connections** daily puzzle by opening the game in a real browser (via Playwright), dismissing cookie and start modals, reading the 16 tiles, and attempting solutions by proposing 4-word groups, submitting them, and adapting based on results. It combines:
 - Robust DOM/iframe navigation and selector fallbacks,
 - Heuristic grouping (prefix/suffix/category patterns),
 - Optional LLM proposals and refinement (OpenAI API; OpenRouter-compatible key).
-
-Created by Nathan Todd
 
 > Use responsibly and at your own risk. The NYT site may change at any time and could break automated selectors. Read the NYT Terms of Service before automating gameplay.
 
