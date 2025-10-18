@@ -1,10 +1,6 @@
 #!/usr/bin/env python3
 """
-connections_bot.py — Opens NYT Connections, clicks through gate/cookies, and
-attempts to solve by proposing 4-word groups, submitting, and checking progress.
-
-Usage:
-  python connections_bot.py --headful
+NYT Connections Bot Solver - created by Nathan Todd
 """
 
 from __future__ import annotations
@@ -38,9 +34,9 @@ URL = "https://www.nytimes.com/games/connections"
 # ----------------------------- Selectors ----------------------------- #
 
 TILE_SELECTOR_CANDIDATES = [
-    'label[data-testid="card-label"]',         # primary (labels contain the visible text)
-    '[data-testid="card-label"]',              # equivalent
-    '[data-testid*="card-label"]',            # any variant containing card-label
+    'label[data-testid="card-label"]',         
+    '[data-testid="card-label"]',              
+    '[data-testid*="card-label"]',            
     '[data-testid="tile"]',
     '[data-testid*="tile"]',
     'button[role="button"][data-testid^="tile"]',
@@ -61,7 +57,6 @@ SUBMIT_SELECTOR_CANDIDATES = [
     'button[aria-label="Submit"]',
 ]
 
-# Common gates/cookie banners / “Play”/“Start”
 DISMISS_SELECTORS = [
     '#onetrust-accept-btn-handler',
     'button:has-text("Accept all")',
@@ -87,11 +82,23 @@ ROLE_BUTTON_NAMES = ["Accept all", "Accept All", "Accept",
 # ----------------------------- Logging helpers ----------------------------- #
 
 def log(msg: str) -> None:
+    """
+    Log a message with a timestamp prefix.
+    
+    Args:
+        msg: The message to log.
+    """
     ts = datetime.now().strftime('%H:%M:%S')
     print(f"[Bot {ts}] {msg}")
 
 
 def log_frames(page) -> None:
+    """
+    Log information about all frames in the page for debugging purposes.
+    
+    Args:
+        page: The Playwright page object to inspect.
+    """
     try:
         frs = list(page.frames)
         log(f"Frames detected: {len(frs)}")
@@ -116,7 +123,17 @@ def log_frames(page) -> None:
 # ----------------------------- Utilities ----------------------------- #
 
 def first_selector(root, selectors: List[str], require_count: int | None = None) -> str | None:
-    """Return the first selector that matches (optionally with a minimum element count)."""
+    """
+    Return the first selector from a list that matches elements on the page.
+    
+    Args:
+        root: The page or frame to search in.
+        selectors: List of CSS selectors to try.
+        require_count: Optional minimum number of elements that must match.
+        
+    Returns:
+        The first matching selector string, or None if none match.
+    """
     for sel in selectors:
         try:
             loc = root.locator(sel)
@@ -138,6 +155,17 @@ def first_selector(root, selectors: List[str], require_count: int | None = None)
 
 
 def click_if_present(root, selector: str, timeout: int = 1200) -> bool:
+    """
+    Click an element if it's present on the page.
+    
+    Args:
+        root: The page or frame to search in.
+        selector: CSS selector for the element to click.
+        timeout: Maximum time to wait for the element in milliseconds.
+        
+    Returns:
+        True if the element was found and clicked, False otherwise.
+    """
     try:
         el = root.locator(selector).first
         el.wait_for(timeout=timeout)
@@ -148,8 +176,14 @@ def click_if_present(root, selector: str, timeout: int = 1200) -> bool:
 
 
 def dismiss_gates_and_cookies(page) -> None:
+    """
+    Attempt to dismiss cookie banners, modals, and other gates on the page.
+    
+    Args:
+        page: The Playwright page object.
+    """
     log("Dismissing gates/cookies if present…")
-    # Try on main page
+    # try on main page
     for sel in DISMISS_SELECTORS:
         if click_if_present(page, sel):
             log(f"Dismissed/Clicked: {sel}")
@@ -163,7 +197,6 @@ def dismiss_gates_and_cookies(page) -> None:
             pass
 
     log("Checking iframes for gates/cookies…")
-    # Try within iframes (game may be nested)
     for f in page.frames:
         for sel in DISMISS_SELECTORS:
             if click_if_present(f, sel):
@@ -176,6 +209,12 @@ def dismiss_gates_and_cookies(page) -> None:
                 pass
             
 def press_play(page) -> None:
+    """
+    Attempt to click the Play or Start button to begin the game.
+    
+    Args:
+        page: The Playwright page object.
+    """
     log("Attempting to press Play/Start button if present…")
     for name in ["Play", "Start"]:
         try:
@@ -212,10 +251,29 @@ def find_game_root(page):
 
 
 def normalize(s: str) -> str:
+    """
+    Normalize a string by removing special characters and converting to lowercase.
+    
+    Args:
+        s: The string to normalize.
+        
+    Returns:
+        Normalized string with only alphanumeric characters and spaces, lowercased.
+    """
     return " ".join("".join(ch for ch in s.strip() if ch.isalnum() or ch.isspace()).split()).lower()
 
 
 def get_tiles(root, tile_sel: str) -> List[Tuple[str, str]]:
+    """
+    Get all tile elements and their text content from the game board.
+    
+    Args:
+        root: The page or frame containing the tiles.
+        tile_sel: CSS selector for tile elements.
+        
+    Returns:
+        List of tuples containing (original_text, original_text) for each tile.
+    """
     tiles = root.locator(tile_sel)
     n = tiles.count()
     out: List[Tuple[str, str]] = []
@@ -230,10 +288,32 @@ def get_tiles(root, tile_sel: str) -> List[Tuple[str, str]]:
 
 
 def get_remaining_words(root, tile_sel: str) -> List[str]:
+    """
+    Get normalized text of all remaining tiles on the board.
+    
+    Args:
+        root: The page or frame containing the tiles.
+        tile_sel: CSS selector for tile elements.
+        
+    Returns:
+        List of normalized word strings.
+    """
     return [normalize(t[0]) for t in get_tiles(root, tile_sel)]
 
 
 def click_tile_by_text(root, tile_sel: str, word: str, delay_ms: int = 120) -> bool:
+    """
+    Click a tile by matching its text content.
+    
+    Args:
+        root: The page or frame containing the tiles.
+        tile_sel: CSS selector for tile elements.
+        word: The word to search for and click.
+        delay_ms: Delay in milliseconds after clicking.
+        
+    Returns:
+        True if the tile was found and clicked, False otherwise.
+    """
     target = normalize(word)
     tiles = root.locator(tile_sel)
     n = tiles.count()
@@ -251,6 +331,17 @@ def click_tile_by_text(root, tile_sel: str, word: str, delay_ms: int = 120) -> b
 
 
 def try_submit(root, submit_sel: str, delay_ms: int = 300) -> bool:
+    """
+    Attempt to click the submit button.
+    
+    Args:
+        root: The page or frame containing the submit button.
+        submit_sel: CSS selector for the submit button.
+        delay_ms: Delay in milliseconds after clicking.
+        
+    Returns:
+        True if the submit button was clicked, False otherwise.
+    """
     try:
         root.locator(submit_sel).first.click()
         root.wait_for_timeout(delay_ms)
@@ -265,9 +356,18 @@ def try_submit(root, submit_sel: str, delay_ms: int = 300) -> bool:
             return False
         
         
-# ----------------------------- LLM integration (Ollama) ----------------------------- #
+# ----------------------------- LLM integration ----------------------------- #
 
 def _map_normalized_to_original(words_original: List[str]) -> Dict[str, List[str]]:
+    """
+    Create a mapping from normalized words to their original forms.
+    
+    Args:
+        words_original: List of original word strings.
+        
+    Returns:
+        Dictionary mapping normalized words to lists of original forms (handles duplicates).
+    """
     # multimap: normalized -> list of originals (handles duplicates)
     m: Dict[str, List[str]] = {}
     for w in words_original:
@@ -276,64 +376,20 @@ def _map_normalized_to_original(words_original: List[str]) -> Dict[str, List[str
     return m
 
 def _consume_originals(mapping: Dict[str, List[str]], w_norm: str) -> str | None:
+    """
+    Pop and return one original word form from the mapping.
+    
+    Args:
+        mapping: Dictionary from normalized words to lists of originals.
+        w_norm: The normalized word to look up.
+        
+    Returns:
+        One original form of the word, or None if not found.
+    """
     arr = mapping.get(w_norm) or []
     if not arr:
         return None
     return arr.pop(0)
-
-def ollama_propose_groups(words_original: List[str], model: str = "llama3.1", timeout: int = 30) -> List[List[str]]:
-    """
-    Ask a local Ollama server to propose 4 groups of 4 using only provided words.
-    Returns a list of groups (each a list of 4 original-surface words). Empty list on failure.
-    """
-    try:
-        url = "http://localhost:11434/api/generate"
-        words_list = list(words_original)
-        prompt = (
-            "You are playing the NYT Connections game. You are given exactly 16 words. "
-            "Partition them into 4 groups of 4 by shared connection. IMPORTANT RULES: "
-            "Use only the given words (no extras), each word appears in exactly one group, "
-            "and return strict JSON with the schema {\"groups\": [[four words], ...]} "
-            "using the words EXACTLY as shown.\n\n"
-            f"WORDS: {words_list}\n\nReturn ONLY JSON, no explanation."
-        )
-        payload = {"model": model, "prompt": prompt, "stream": False}
-        resp = requests.post(url, json=payload, timeout=timeout)
-        resp.raise_for_status()
-        data = resp.json()
-        raw = data.get("response", "")
-        # Try to extract a JSON object
-        m = re.search(r"\{[\s\S]*\}", raw)
-        json_text = m.group(0) if m else raw
-        parsed = json.loads(json_text)
-        groups = parsed.get("groups", [])
-        if not isinstance(groups, list):
-            return []
-
-        # Validate and map back to originals
-        norm_map = _map_normalized_to_original(words_original)
-        words_norm_set = {normalize(w) for w in words_original}
-        out: List[List[str]] = []
-
-        for g in groups:
-            if not isinstance(g, list) or len(g) != 4:
-                continue
-            mapped: List[str] = []
-            ok = True
-            for w in g:
-                wn = normalize(str(w))
-                if wn not in words_norm_set:
-                    ok = False; break
-                orig = _consume_originals(norm_map, wn)
-                if orig is None:
-                    ok = False; break
-                mapped.append(orig)
-            if ok and len(mapped) == 4:
-                out.append(mapped)
-        return out[:4]
-    except Exception as e:
-        log(f"Ollama call failed: {e}")
-        return []
 
 
 # ----------------------------- Heuristics ----------------------------- #
@@ -349,6 +405,16 @@ COLORS = {
 DAYS = {"monday","tuesday","wednesday","thursday","friday","saturday","sunday"}
 
 def group_by_suffix(words: List[str], k: int) -> List[List[str]]:
+    """
+    Group words by their last k characters (suffix).
+    
+    Args:
+        words: List of words to group.
+        k: Length of suffix to match.
+        
+    Returns:
+        List of groups (each with at least 4 words sharing a suffix).
+    """
     buckets: Dict[str,List[str]] = {}
     for w in words:
         if len(w) >= k:
@@ -357,6 +423,16 @@ def group_by_suffix(words: List[str], k: int) -> List[List[str]]:
     return [v for v in buckets.values() if len(v) >= 4]
 
 def group_by_prefix(words: List[str], k: int) -> List[List[str]]:
+    """
+    Group words by their first k characters (prefix).
+    
+    Args:
+        words: List of words to group.
+        k: Length of prefix to match.
+        
+    Returns:
+        List of groups (each with at least 4 words sharing a prefix).
+    """
     buckets: Dict[str,List[str]] = {}
     for w in words:
         if len(w) >= k:
@@ -365,6 +441,15 @@ def group_by_prefix(words: List[str], k: int) -> List[List[str]]:
     return [v for v in buckets.values() if len(v) >= 4]
 
 def category_groups(words: List[str]) -> List[List[str]]:
+    """
+    Find groups of words matching known categories (months, colors, days).
+    
+    Args:
+        words: List of words to search.
+        
+    Returns:
+        List of groups (each with 4 words from a known category).
+    """
     s = set(words)
     cands = []
     for cat in (MONTHS, COLORS, DAYS):
@@ -378,7 +463,20 @@ def generate_candidate_groups(
     priority_groups: List[List[str]] | None = None,
     banned_groups_norm: List[Set[str]] | None = None
 ) -> List[List[str]]:
-    """Order: category matches → shared suffix/prefix → same length → brute-force sample."""
+    """
+    Generate candidate groups of 4 words using various heuristics.
+    
+    Priority order: priority groups (e.g., from LLM) → category matches → 
+    shared suffix/prefix → same length → brute-force sampling.
+    
+    Args:
+        words: List of words to group.
+        priority_groups: Optional list of groups to try first (e.g., from LLM).
+        banned_groups_norm: Optional list of normalized word sets to avoid.
+        
+    Returns:
+        List of candidate groups (each containing 4 words).
+    """
     W = list(words)
     random.shuffle(W)
     seen: Set[Tuple[str,...]] = set()
@@ -447,7 +545,18 @@ def generate_candidate_groups(
             seen.add(t); out.append(g)
 
     return out
+
 def originals_from_remaining(tiles: List[Tuple[str, str]], remaining_norm: Set[str]) -> List[str]:
+    """
+    Extract original word forms for the remaining normalized words.
+    
+    Args:
+        tiles: List of (original, _) tuples from get_tiles.
+        remaining_norm: Set of normalized words still remaining.
+        
+    Returns:
+        List of original word forms corresponding to remaining_norm.
+    """
     out: List[str] = []
     seen: Dict[str, int] = {}
     for original, _ in tiles:
@@ -459,8 +568,21 @@ def originals_from_remaining(tiles: List[Tuple[str, str]], remaining_norm: Set[s
             out.append(original)
             seen[key] = cnt + 1
     return out
+
 def openai_refine_groups(words_original: List[str], banned_groups: List[List[str]], api_key: str, model: str = "gpt-4.1", timeout: int = 60) -> List[List[str]]:
-    """Ask OpenAI again, providing previously tried-but-incorrect groups to avoid."""
+    """
+    Request refined group proposals from OpenAI, avoiding previously incorrect groups.
+    
+    Args:
+        words_original: List of remaining words in their original form.
+        banned_groups: List of previously tried groups that were incorrect.
+        api_key: OpenAI API key.
+        model: OpenAI model name to use.
+        timeout: Request timeout in seconds (unused in current implementation).
+        
+    Returns:
+        List of up to 4 proposed groups, each containing 4 words.
+    """
     try:
         client = OpenAI(api_key=api_key)
         words_list = list(words_original)
@@ -514,6 +636,7 @@ def openai_refine_groups(words_original: List[str], banned_groups: List[List[str
 
 @dataclass
 class Options:
+    """Configuration options for the solver."""
     headless: bool = True
     max_mistakes: int = 4
     dry_run: bool = False
@@ -521,6 +644,14 @@ class Options:
     openai_model: str = "gpt-4.1"
 
 def solve(playwright: Playwright, url: str, opt: Options) -> None:
+    """
+    Main solver function that automates playing the NYT Connections game.
+    
+    Args:
+        playwright: Playwright instance for browser automation.
+        url: URL of the Connections game.
+        opt: Options object with configuration settings.
+    """
     browser = playwright.chromium.launch(headless=opt.headless)
     context = browser.new_context()
     page = context.new_page()
@@ -611,13 +742,6 @@ def solve(playwright: Playwright, url: str, opt: Options) -> None:
                 log(f"OpenAI proposed {len(llm_groups)} groups: {llm_groups}")
             else:
                 log("OpenAI returned no usable groups; falling back to heuristics.")
-    elif not llm_groups and opt.use_ollama:
-        log(f"Querying Ollama ({opt.ollama_model}) for proposed groups…")
-        llm_groups = ollama_propose_groups([t[0] for t in tiles], model=opt.ollama_model)
-        if llm_groups:
-            log(f"Ollama proposed {len(llm_groups)} groups: {llm_groups}")
-        else:
-            log("Ollama returned no usable groups; falling back to heuristics.")
 
     if len(words) < 16:
         log("Warning: fewer than 16 tiles visible. A modal might still be present.")
@@ -706,12 +830,16 @@ def solve(playwright: Playwright, url: str, opt: Options) -> None:
                 break
 
     log("Done.")
-    # if opt.headless:
-    #     context.close()
-    #     browser.close()
+
 
 
 def main():
+    """
+    Parse command-line arguments and run the solver.
+    
+    Returns:
+        Exit code from the solver.
+    """
     ap = argparse.ArgumentParser()
     ap.add_argument("--headful", action="store_true", help="show the browser (default headless)")
     ap.add_argument("--dry-run", action="store_true", help="don’t click/submit, just open and read")
@@ -734,7 +862,18 @@ def main():
 # ----------------------------- LLM integration (OpenRouter) ----------------------------- #
 
 def openai_propose_groups(words_original: List[str], api_key: str, model: str = "gpt-4.1", timeout: int = 60) -> List[List[str]]:
-    """Use OpenAI API to propose 4 groups of 4 for NYT Connections."""
+    """
+    Use OpenAI API to propose 4 groups of 4 words for NYT Connections.
+    
+    Args:
+        words_original: List of 16 words in their original form.
+        api_key: OpenAI API key.
+        model: OpenAI model name to use.
+        timeout: Request timeout in seconds (unused in current implementation).
+        
+    Returns:
+        List of up to 4 proposed groups, each containing 4 words.
+    """
     try:
         client = OpenAI(api_key=api_key)
         words_list = list(words_original)
@@ -743,7 +882,6 @@ def openai_propose_groups(words_original: List[str], api_key: str, model: str = 
             "Partition them into 4 groups of 4 by shared connection. IMPORTANT RULES: "
             "The four categories get increasingly difficult to match, so start with the easiest ones first. "
             "The easiest ones are often synonyms or simple patterns, while the hardest ones may be more abstract."
-            "Categories for today: GLIDE, WORDS BEFORE 'BALL' IN SPORTS, PROLIFIC ACTORS, HOMOPHONES OF SYNONYMS FOR 'VENT'."
             "Use only the given words (no extras), each word appears in exactly one group, "
             "and return strict JSON with the schema {\"groups\": [[four words], ...]} "
             "using the words EXACTLY as shown.\n\n"
