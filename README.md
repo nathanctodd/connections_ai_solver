@@ -5,7 +5,7 @@ Automates the **NYT Connections** daily puzzle by opening the game in a real bro
 - Heuristic grouping (prefix/suffix/category patterns),
 - Optional LLM proposals and refinement (OpenAI API; OpenRouter-compatible key).
 
-> ⚠️ Use responsibly and at your own risk. The NYT site may change at any time and could break automated selectors. Read the NYT Terms of Service before automating gameplay.
+> Use responsibly and at your own risk. The NYT site may change at any time and could break automated selectors. Read the NYT Terms of Service before automating gameplay.
 
 ---
 
